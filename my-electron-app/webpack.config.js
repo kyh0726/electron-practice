@@ -6,6 +6,14 @@ module.exports = [
     mode: 'development',
     entry: './src/main.ts',
     target: 'electron-main',
+    node: {
+      __dirname: false,
+      __filename: false,
+    },
+    externals: {
+      'active-win': 'commonjs active-win',
+      'node-os-utils': 'commonjs node-os-utils'
+    },
     module: {
       rules: [{
         test: /\.ts$/,
