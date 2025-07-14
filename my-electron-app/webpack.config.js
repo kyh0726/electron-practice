@@ -43,7 +43,7 @@ module.exports = [
   {
     mode: 'development',
     entry: './src/renderer/index.tsx',
-    target: 'electron-renderer',
+    target: 'web',
     devtool: 'source-map',
     module: {
       rules: [
@@ -69,6 +69,16 @@ module.exports = [
       new HtmlWebpackPlugin({
         template: './src/renderer/index.html'
       })
-    ]
+    ],
+    devServer: {
+      port: 8080,
+      hot: true,
+      static: {
+        directory: path.join(__dirname, 'dist'),
+      },
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      }
+    }
   }
 ];
