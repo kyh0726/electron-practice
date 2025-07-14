@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시스템 모니터링 앱 다운로드</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .download-section {
+            margin: 30px 0;
+        }
+        .download-button {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .download-button:hover {
+            background-color: #0056b3;
+        }
+        .download-button.mac {
+            background-color: #28a745;
+        }
+        .download-button.mac:hover {
+            background-color: #1e7e34;
+        }
+        .version-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .auto-update {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖥️ 시스템 모니터링 앱</h1>
+        
+        <div class="version-info">
+            <h3>최신 버전: <span id="latest-version">로딩 중...</span></h3>
+            <p>업데이트 일자: <span id="update-date">로딩 중...</span></p>
+        </div>
+
+        <div class="download-section">
+            <h3>다운로드</h3>
+            <a href="#" id="windows-download" class="download-button">
+                💻 Windows 다운로드
+            </a>
+            <a href="#" id="mac-download" class="download-button mac">
+                🍎 macOS 다운로드
+            </a>
+        </div>
+
+        <div class="auto-update">
+            <h3>🔄 자동 업데이트</h3>
+            <p>앱을 설치하면 자동으로 최신 버전으로 업데이트됩니다.</p>
+        </div>
+
+        <div class="download-section">
+            <h3>📋 기능</h3>
+            <ul>
+                <li>실시간 시스템 활동 모니터링</li>
+                <li>앱 사용 시간 추적</li>
+                <li>CPU, 메모리 사용량 표시</li>
+                <li>자동 업데이트 지원</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // GitHub API를 통해 최신 릴리즈 정보 가져오기
+        async function fetchLatestRelease() {
+            try {
+                const response = await fetch('https://api.github.com/repos/kyh0726/electron-practice/releases/latest');
+                const data = await response.json();
+                
+                // 버전 정보 업데이트
+                document.getElementById('latest-version').textContent = data.tag_name;
+                document.getElementById('update-date').textContent = new Date(data.published_at).toLocaleDateString('ko-KR');
+                
+                // 다운로드 링크 설정
+                const assets = data.assets;
+                const windowsAsset = assets.find(asset => asset.name.includes('.exe'));
+                const macAsset = assets.find(asset => asset.name.includes('.dmg'));
+                
+                if (windowsAsset) {
+                    document.getElementById('windows-download').href = windowsAsset.browser_download_url;
+                }
+                if (macAsset) {
+                    document.getElementById('mac-download').href = macAsset.browser_download_url;
+                }
+            } catch (error) {
+                console.error('릴리즈 정보를 가져오는데 실패했습니다:', error);
+                document.getElementById('latest-version').textContent = 'v1.0.1';
+                document.getElementById('update-date').textContent = '정보 없음';
+            }
+        }
+
+        // 페이지 로드 시 실행
+        fetchLatestRelease();
+    </script>
+</body>
+</html>
