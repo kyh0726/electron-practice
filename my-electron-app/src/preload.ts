@@ -42,5 +42,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 타이머 창 이동
   moveTimerWindow: (x: number, y: number) => {
     ipcRenderer.send('move-timer-window', { x, y });
-  }
+  },
+  
+  // 포모도로 설정
+  setWorkDuration: (minutes: number) => ipcRenderer.invoke('set-work-duration', minutes),
+  setBreakDuration: (minutes: number) => ipcRenderer.invoke('set-break-duration', minutes),
+  switchMode: (mode: 'work' | 'break') => ipcRenderer.invoke('switch-mode', mode)
 });

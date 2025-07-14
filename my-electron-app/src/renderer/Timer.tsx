@@ -3,14 +3,26 @@ import React, { useState, useEffect } from 'react';
 interface TimerData {
   isRunning: boolean;
   elapsedTime: number;
+  remainingTime?: number;
   formattedTime: string;
+  mode?: 'work' | 'break';
+  isAfk?: boolean;
+  cycleCount?: number;
+  totalWorkTime?: number;
+  progress?: number;
 }
 
 const Timer: React.FC = () => {
   const [timerData, setTimerData] = useState<TimerData>({
     isRunning: false,
     elapsedTime: 0,
-    formattedTime: '00:00'
+    remainingTime: 25 * 60 * 1000, // 25분
+    formattedTime: '25:00',
+    mode: 'work',
+    isAfk: false,
+    cycleCount: 0,
+    totalWorkTime: 0,
+    progress: 0
   });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -43,12 +55,6 @@ const Timer: React.FC = () => {
 
   const handleStop = () => {
     if (window.electronAPI) {
-      window.electronAPI.stopTimer();
-    }
-  };
-
-  const handleReset = () => {
-    if (window.electronAPI) {
       window.electronAPI.resetTimer();
     }
   };
@@ -73,6 +79,16 @@ const Timer: React.FC = () => {
     setIsDragging(false);
   };
 
+  const getModeColor = () => {
+    if (timerData.isAfk) return '#ffc107'; // 노란색 (AFK)
+    return timerData.mode === 'work' ? '#28a745' : '#17a2b8'; // 초록색 (작업) / 파란색 (휴식)
+  };
+
+  const getModeText = () => {
+    if (timerData.isAfk) return 'AFK';
+    return timerData.mode === 'work' ? 'WORK' : 'BREAK';
+  };
+
   return (
     <div 
       className="timer-container"
@@ -84,36 +100,82 @@ const Timer: React.FC = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        height: '80px',
-        padding: '0 10px',
+        width: '200px',
+        height: '100px',
+        padding: '10px',
         margin: 0,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        background: 'rgba(0, 0, 0, 0.8)',
-        borderRadius: '10px',
+        background: 'rgba(0, 0, 0, 0.9)',
+        borderRadius: '12px',
         color: 'white',
         cursor: 'move',
         userSelect: 'none',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        border: `2px solid ${getModeColor()}`,
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
       }}
     >
+      {/* 상태 및 사이클 정보 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginBottom: '8px',
+        fontSize: '10px',
+        opacity: 0.8
+      }}>
+        <span style={{ 
+          color: getModeColor(),
+          fontWeight: 'bold',
+          fontSize: '11px'
+        }}>
+          {getModeText()}
+        </span>
+        <span>
+          사이클: {timerData.cycleCount} | 총 {timerData.totalWorkTime}분
+        </span>
+      </div>
+
+      {/* 타이머 표시 */}
       <div 
         className="timer-display"
         style={{
-          fontSize: '16px',
+          fontSize: '18px',
           fontWeight: 'bold',
-          marginBottom: '5px',
+          marginBottom: '8px',
           textAlign: 'center',
-          fontFamily: '"Courier New", monospace'
+          fontFamily: '"Courier New", monospace',
+          color: timerData.isAfk ? '#ffc107' : 'white'
         }}
       >
         {timerData.formattedTime}
       </div>
+
+      {/* 진행률 바 */}
+      {timerData.isRunning && (
+        <div style={{
+          width: '100%',
+          height: '4px',
+          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          borderRadius: '2px',
+          marginBottom: '8px',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            width: `${Math.min(timerData.progress || 0, 100)}%`,
+            height: '100%',
+            backgroundColor: getModeColor(),
+            transition: 'width 1s ease'
+          }} />
+        </div>
+      )}
       
+      {/* 컨트롤 버튼 */}
       <div 
         className="timer-controls"
         style={{
           display: 'flex',
-          gap: '5px',
+          gap: '12px',
           opacity: 0.7,
           transition: 'opacity 0.2s'
         }}
@@ -128,17 +190,19 @@ const Timer: React.FC = () => {
           onClick={handleStart}
           disabled={timerData.isRunning}
           style={{
-            width: '20px',
-            height: '20px',
+            width: '24px',
+            height: '24px',
             border: 'none',
             borderRadius: '50%',
             cursor: timerData.isRunning ? 'not-allowed' : 'pointer',
-            fontSize: '10px',
+            fontSize: '12px',
             fontWeight: 'bold',
-            background: '#28a745',
+            background: timerData.isRunning ? '#6c757d' : '#28a745',
             color: 'white',
-            opacity: timerData.isRunning ? 0.5 : 1,
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
           onMouseEnter={(e) => {
             if (!timerData.isRunning) {
@@ -156,48 +220,22 @@ const Timer: React.FC = () => {
           onClick={handleStop}
           disabled={!timerData.isRunning}
           style={{
-            width: '20px',
-            height: '20px',
+            width: '24px',
+            height: '24px',
             border: 'none',
             borderRadius: '50%',
             cursor: !timerData.isRunning ? 'not-allowed' : 'pointer',
-            fontSize: '10px',
+            fontSize: '12px',
             fontWeight: 'bold',
-            background: '#dc3545',
+            background: !timerData.isRunning ? '#6c757d' : '#dc3545',
             color: 'white',
-            opacity: !timerData.isRunning ? 0.5 : 1,
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
           onMouseEnter={(e) => {
             if (timerData.isRunning) {
-              (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
-          }}
-        >
-          ⏸
-        </button>
-        
-        <button
-          onClick={handleReset}
-          disabled={timerData.isRunning}
-          style={{
-            width: '20px',
-            height: '20px',
-            border: 'none',
-            borderRadius: '50%',
-            cursor: timerData.isRunning ? 'not-allowed' : 'pointer',
-            fontSize: '10px',
-            fontWeight: 'bold',
-            background: '#6c757d',
-            color: 'white',
-            opacity: timerData.isRunning ? 0.5 : 1,
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            if (!timerData.isRunning) {
               (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)';
             }
           }}
