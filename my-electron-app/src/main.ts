@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -27,6 +28,9 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  
+  // 자동 업데이트 설정
+  setupAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -52,6 +56,61 @@ let activityLogs: any[] = [];
 let isMonitoring = false;
 let monitoringInterval: NodeJS.Timeout | null = null;
 let lastActivity: { app: string; title: string; url?: string; startTime: number } | null = null;
+
+// 자동 업데이트 설정
+function setupAutoUpdater() {
+  // 개발 모드에서는 자동 업데이트 비활성화
+  if (process.env.NODE_ENV === 'development') {
+    return;
+  }
+  
+  // 업데이트 이벤트 리스너
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for update...');
+    sendUpdateStatus('checking-for-update');
+  });
+  
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info);
+    sendUpdateStatus('update-available', info);
+  });
+  
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('Update not available:', info);
+    sendUpdateStatus('update-not-available', info);
+  });
+  
+  autoUpdater.on('error', (err) => {
+    console.error('Update error:', err);
+    sendUpdateStatus('error', { message: err.message });
+  });
+  
+  autoUpdater.on('download-progress', (progressObj) => {
+    let log_message = `Download speed: ${progressObj.bytesPerSecond}`;
+    log_message += ` - Downloaded ${progressObj.percent}%`;
+    log_message += ` (${progressObj.transferred}/${progressObj.total})`;
+    console.log(log_message);
+    sendUpdateStatus('download-progress', progressObj);
+  });
+  
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded:', info);
+    sendUpdateStatus('update-downloaded', info);
+  });
+  
+  // 앱 시작 시 업데이트 확인
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 5000);
+}
+
+// 업데이트 상태를 렌더러에 전송
+function sendUpdateStatus(event: string, data?: any) {
+  const windows = BrowserWindow.getAllWindows();
+  windows.forEach(win => {
+    win.webContents.send('update-status', { event, data });
+  });
+}
 
 // 시스템 활동 모니터링 함수
 async function collectSystemActivity() {
@@ -217,6 +276,46 @@ ipcMain.handle('save-log', async (event, logData) => {
     return { success: true, path: logPath };
   } catch (error) {
     console.error('Failed to save log:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// IPC 핸들러 - 업데이트 관련
+ipcMain.handle('check-for-updates', async () => {
+  if (process.env.NODE_ENV === 'development') {
+    return { success: false, message: 'Updates disabled in development mode' };
+  }
+  
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('download-update', async () => {
+  if (process.env.NODE_ENV === 'development') {
+    return { success: false, message: 'Updates disabled in development mode' };
+  }
+  
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('install-update', async () => {
+  if (process.env.NODE_ENV === 'development') {
+    return { success: false, message: 'Updates disabled in development mode' };
+  }
+  
+  try {
+    autoUpdater.quitAndInstall();
+    return { success: true };
+  } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 });

@@ -1,5 +1,7 @@
 import React from 'react';
 import { useUsageMonitoring } from './hooks/useUsageMonitoring';
+import { useAutoUpdater } from './hooks/useAutoUpdater';
+import UpdateNotification from './components/UpdateNotification';
 
 declare global {
   interface Window {
@@ -14,6 +16,11 @@ declare global {
       startMonitoring: () => Promise<{ success: boolean; message: string }>;
       stopMonitoring: () => Promise<{ success: boolean; message: string }>;
       getCurrentActivity: () => Promise<any>;
+      checkForUpdates: () => Promise<{ success: boolean; data?: any; error?: string }>;
+      downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
+      installUpdate: () => Promise<{ success: boolean; error?: string }>;
+      onUpdateStatus: (callback: (event: any, data: any) => void) => void;
+      removeUpdateStatusListener: (callback: (event: any, data: any) => void) => void;
     };
   }
 }
@@ -27,9 +34,12 @@ const App: React.FC = () => {
     startMonitoring,
     stopMonitoring
   } = useUsageMonitoring();
+  
+  const { checkForUpdates } = useAutoUpdater();
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
+      <UpdateNotification />
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-6">시스템 활동 모니터링</h1>
@@ -64,6 +74,13 @@ const App: React.FC = () => {
               } text-white font-bold py-2 px-4 rounded transition-colors`}
             >
               모니터링 중지
+            </button>
+            
+            <button 
+              onClick={checkForUpdates}
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              업데이트 확인
             </button>
           </div>
 

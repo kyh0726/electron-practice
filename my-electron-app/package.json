@@ -10,7 +10,8 @@
     "build": "webpack --config webpack.config.js",
     "start": "npm run build && electron .",
     "deploy": "npm run build && electron-builder --windows nsis:ia32",
-    "build-mac": "npm run build && electron-builder --mac"
+    "build-mac": "npm run build && electron-builder --mac",
+    "release": "npm run build && electron-builder --publish always"
   },
   "build": {
     "productName": "test",
@@ -21,6 +22,11 @@
       "schemes": [
         "test"
       ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "kyh0726",
+      "repo": "electron-practice"
     },
     "mac": {
       "target": [
@@ -73,6 +79,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "active-win": "^8.2.1",
+    "electron-updater": "^6.6.2",
     "node-os-utils": "^1.3.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
