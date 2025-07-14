@@ -11,8 +11,7 @@
       "Bash(git commit:*)",
       "Bash(git tag:*)",
       "Bash(git push:*)",
-      "Bash(npm version:*)",
-      "Bash(curl:*)"
+      "Bash(npm version:*)"
     ],
     "deny": []
   }
