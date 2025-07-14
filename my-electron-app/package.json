@@ -2,11 +2,15 @@
   "name": "my-electron-app",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "deploy":"electron-builder --windows nsis:ia32",
-    "build-mac": "electron-builder --mac",
-    "start": "electron ."
+    "dev": "concurrently \"npm run dev:webpack\" \"npm run dev:electron\"",
+    "dev:webpack": "webpack serve --config webpack.config.js",
+    "dev:electron": "wait-on http://localhost:8080 && NODE_ENV=development electron .",
+    "build": "webpack --config webpack.config.js",
+    "start": "npm run build && electron .",
+    "deploy": "npm run build && electron-builder --windows nsis:ia32",
+    "build-mac": "npm run build && electron-builder --mac"
   },
   "build": {
     "productName": "test",
@@ -47,7 +51,29 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.0",
+    "css-loader": "^7.1.2",
     "electron": "^37.2.1",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "html-webpack-plugin": "^5.6.3",
+    "postcss": "^8.5.6",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^4.0.0",
+    "tailwindcss": "^4.1.11",
+    "ts-loader": "^9.5.2",
+    "wait-on": "^8.0.3",
+    "webpack": "^5.100.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
+  },
+  "dependencies": {
+    "@types/node": "^24.0.13",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "^5.8.3"
   }
 }
