@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUsageMonitoring } from './hooks/useUsageMonitoring';
 import { useAutoUpdater } from './hooks/useAutoUpdater';
+import { useAuth } from './hooks/useAuth';
 import UpdateNotification from './components/UpdateNotification';
+import AuthForm from './components/AuthForm';
+import UserSettings from './components/UserSettings';
 
 declare global {
   interface Window {
@@ -45,10 +48,62 @@ const App: React.FC = () => {
   } = useUsageMonitoring();
   
   const { checkForUpdates } = useAutoUpdater();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const [showSettings, setShowSettings] = useState(false);
 
+  // 인증 상태 로딩 중
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 경우 인증 폼 표시
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  // 로그인한 사용자에게 메인 앱 표시
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <UpdateNotification />
+      
+      {/* 사용자 헤더 */}
+      <div className="max-w-4xl mx-auto mb-6">
+        <div className="bg-white rounded-lg shadow-lg p-4 flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+              {user.user_metadata?.full_name ? user.user_metadata.full_name[0].toUpperCase() : user.email[0].toUpperCase()}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">
+                {user.user_metadata?.full_name || '사용자'}
+              </h2>
+              <p className="text-sm text-gray-600">{user.email}</p>
+            </div>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              설정
+            </button>
+            <button
+              onClick={signOut}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              로그아웃
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-6">시스템 활동 모니터링</h1>
@@ -136,6 +191,12 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* 설정 모달 */}
+      <UserSettings 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+      />
     </div>
   );
 };

@@ -86,7 +86,16 @@ module.exports = [
       },
       headers: {
         'Access-Control-Allow-Origin': '*',
-      }
+      },
+      client: {
+        logging: 'warn',
+        overlay: {
+          errors: true,
+          warnings: false,
+        },
+      },
+      allowedHosts: 'all',
+      historyApiFallback: true,
     }
   },
   {

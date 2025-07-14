@@ -5,10 +5,11 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:webpack\" \"npm run dev:electron\"",
-    "dev:webpack": "NODE_ENV=development webpack serve --config webpack.config.js",
+    "dev:webpack": "NODE_ENV=development webpack serve --config webpack.config.js --no-open",
     "dev:electron": "wait-on http://localhost:8080 && NODE_ENV=development electron .",
     "build": "webpack --config webpack.config.js",
     "start": "npm run build && electron .",
+    "start:dev": "NODE_ENV=development npm run dev",
     "deploy": "npm run build && electron-builder --windows nsis:ia32",
     "build-mac": "npm run build && electron-builder --mac",
     "release": "npm run build && electron-builder --publish always"
@@ -75,10 +76,12 @@
     "webpack-dev-server": "^5.2.2"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.51.0",
     "@types/node": "^24.0.13",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "active-win": "^8.2.1",
+    "dotenv": "^17.2.0",
     "electron-updater": "^6.6.2",
     "node-os-utils": "^1.3.7",
     "react": "^19.1.0",
