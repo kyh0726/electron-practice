@@ -21,6 +21,12 @@ declare global {
       installUpdate: () => Promise<{ success: boolean; error?: string }>;
       onUpdateStatus: (callback: (event: any, data: any) => void) => void;
       removeUpdateStatusListener: (callback: (event: any, data: any) => void) => void;
+      startTimer: () => Promise<{ success: boolean; message: string }>;
+      stopTimer: () => Promise<{ success: boolean; message: string }>;
+      resetTimer: () => Promise<{ success: boolean; message: string }>;
+      getTimerStatus: () => Promise<{ isRunning: boolean; elapsedTime: number; formattedTime: string }>;
+      onTimerUpdate: (callback: (event: any, data: any) => void) => void;
+      moveTimerWindow: (x: number, y: number) => void;
     };
   }
 }

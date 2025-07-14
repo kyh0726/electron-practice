@@ -6,8 +6,11 @@ import * as os from 'os';
 const activeWin = require('active-win');
 const osu = require('node-os-utils');
 
+let mainWindow: BrowserWindow | null = null;
+let timerWindow: BrowserWindow | null = null;
+
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -18,16 +21,55 @@ function createWindow() {
   });
 
   if (process.env.NODE_ENV === 'development') {
-    win.loadURL('http://localhost:8080');
+    mainWindow.loadURL('http://localhost:8080');
     // 개발자 도구를 자동으로 열지 않음
-    // win.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
   } else {
-    win.loadFile(path.join(__dirname, 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, 'index.html'));
   }
+}
+
+function createTimerWindow() {
+  timerWindow = new BrowserWindow({
+    width: 200,
+    height: 80,
+    frame: false, // 타이틀바 제거
+    alwaysOnTop: true, // 항상 최상단
+    resizable: false,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    skipTaskbar: true, // 작업표시줄에 표시 안함
+    transparent: true, // 투명 배경
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  // 화면 오른쪽 상단에 위치
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
+  timerWindow.setPosition(width - 220, 20);
+
+  if (process.env.NODE_ENV === 'development') {
+    timerWindow.loadURL('http://localhost:8080/timer.html');
+  } else {
+    timerWindow.loadFile(path.join(__dirname, 'timer.html'));
+  }
+
+  // 타이머 창이 닫히면 null로 설정
+  timerWindow.on('closed', () => {
+    timerWindow = null;
+  });
 }
 
 app.whenReady().then(() => {
   createWindow();
+  createTimerWindow(); // 타이머 창도 함께 생성
   
   // 자동 업데이트 설정
   setupAutoUpdater();
@@ -35,6 +77,7 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+      createTimerWindow();
     }
   });
 });
@@ -56,6 +99,11 @@ let activityLogs: any[] = [];
 let isMonitoring = false;
 let monitoringInterval: NodeJS.Timeout | null = null;
 let lastActivity: { app: string; title: string; url?: string; startTime: number } | null = null;
+
+// 타이머 관련 변수
+let timerStartTime: number | null = null;
+let timerInterval: NodeJS.Timeout | null = null;
+let elapsedTime = 0;
 
 // 자동 업데이트 설정
 function setupAutoUpdater() {
@@ -110,6 +158,13 @@ function sendUpdateStatus(event: string, data?: any) {
   windows.forEach(win => {
     win.webContents.send('update-status', { event, data });
   });
+}
+
+// 타이머 상태를 타이머 창에 전송
+function sendTimerUpdate(data: any) {
+  if (timerWindow) {
+    timerWindow.webContents.send('timer-update', data);
+  }
 }
 
 // 시스템 활동 모니터링 함수
@@ -204,20 +259,83 @@ async function saveActivityLogs() {
   }
 }
 
-// IPC 핸들러 - 모니터링 시작/중지
-ipcMain.handle('start-monitoring', async () => {
+// 타이머 시작
+function startTimer() {
+  if (!timerStartTime) {
+    timerStartTime = Date.now() - elapsedTime;
+    timerInterval = setInterval(() => {
+      elapsedTime = Date.now() - timerStartTime!;
+      sendTimerUpdate({
+        isRunning: true,
+        elapsedTime: elapsedTime,
+        formattedTime: formatTime(elapsedTime)
+      });
+    }, 1000);
+    
+    // 모니터링도 함께 시작
+    if (!isMonitoring) {
+      startMonitoring();
+    }
+  }
+}
+
+// 타이머 중지
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    sendTimerUpdate({
+      isRunning: false,
+      elapsedTime: elapsedTime,
+      formattedTime: formatTime(elapsedTime)
+    });
+    
+    // 모니터링도 함께 중지
+    if (isMonitoring) {
+      stopMonitoring();
+    }
+  }
+}
+
+// 타이머 리셋
+function resetTimer() {
+  stopTimer();
+  elapsedTime = 0;
+  timerStartTime = null;
+  sendTimerUpdate({
+    isRunning: false,
+    elapsedTime: 0,
+    formattedTime: formatTime(0)
+  });
+}
+
+// 시간 포맷팅
+function formatTime(milliseconds: number): string {
+  const seconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  const displaySeconds = seconds % 60;
+  const displayMinutes = minutes % 60;
+  
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}:${displaySeconds.toString().padStart(2, '0')}`;
+  } else {
+    return `${displayMinutes.toString().padStart(2, '0')}:${displaySeconds.toString().padStart(2, '0')}`;
+  }
+}
+
+// 모니터링 시작 함수
+function startMonitoring() {
   if (!isMonitoring) {
     isMonitoring = true;
-    // 5초마다 활동 수집
     monitoringInterval = setInterval(collectSystemActivity, 5000);
-    // 즉시 한 번 수집
-    await collectSystemActivity();
-    return { success: true, message: 'Monitoring started' };
+    collectSystemActivity();
   }
-  return { success: false, message: 'Already monitoring' };
-});
+}
 
-ipcMain.handle('stop-monitoring', async () => {
+// 모니터링 중지 함수
+async function stopMonitoring() {
   if (isMonitoring) {
     isMonitoring = false;
     if (monitoringInterval) {
@@ -239,11 +357,43 @@ ipcMain.handle('stop-monitoring', async () => {
       lastActivity = null;
     }
     
-    // 남은 로그 저장
     await saveActivityLogs();
-    return { success: true, message: 'Monitoring stopped' };
   }
-  return { success: false, message: 'Not monitoring' };
+}
+
+// IPC 핸들러 - 모니터링 시작/중지
+ipcMain.handle('start-monitoring', async () => {
+  startMonitoring();
+  return { success: true, message: 'Monitoring started' };
+});
+
+ipcMain.handle('stop-monitoring', async () => {
+  await stopMonitoring();
+  return { success: true, message: 'Monitoring stopped' };
+});
+
+// IPC 핸들러 - 타이머 제어
+ipcMain.handle('start-timer', async () => {
+  startTimer();
+  return { success: true, message: 'Timer started' };
+});
+
+ipcMain.handle('stop-timer', async () => {
+  stopTimer();
+  return { success: true, message: 'Timer stopped' };
+});
+
+ipcMain.handle('reset-timer', async () => {
+  resetTimer();
+  return { success: true, message: 'Timer reset' };
+});
+
+ipcMain.handle('get-timer-status', async () => {
+  return {
+    isRunning: timerInterval !== null,
+    elapsedTime: elapsedTime,
+    formattedTime: formatTime(elapsedTime)
+  };
 });
 
 // IPC 핸들러 - 현재 활동 가져오기
@@ -317,6 +467,13 @@ ipcMain.handle('install-update', async () => {
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// IPC 핸들러 - 타이머 창 이동
+ipcMain.on('move-timer-window', (event, { x, y }) => {
+  if (timerWindow) {
+    timerWindow.setPosition(x, y);
   }
 });
 

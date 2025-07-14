@@ -10,8 +10,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git tag:*)",
-      "Bash(git push:*)",
-      "Bash(npm version:*)"
+      "Bash(npm version:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

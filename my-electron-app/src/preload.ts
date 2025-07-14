@@ -26,5 +26,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 업데이트 상태 리스너 제거
   removeUpdateStatusListener: (callback: (event: any, data: any) => void) => {
     ipcRenderer.removeListener('update-status', callback);
+  },
+  
+  // 타이머 API
+  startTimer: () => ipcRenderer.invoke('start-timer'),
+  stopTimer: () => ipcRenderer.invoke('stop-timer'),
+  resetTimer: () => ipcRenderer.invoke('reset-timer'),
+  getTimerStatus: () => ipcRenderer.invoke('get-timer-status'),
+  
+  // 타이머 업데이트 리스너
+  onTimerUpdate: (callback: (event: any, data: any) => void) => {
+    ipcRenderer.on('timer-update', callback);
+  },
+  
+  // 타이머 창 이동
+  moveTimerWindow: (x: number, y: number) => {
+    ipcRenderer.send('move-timer-window', { x, y });
   }
 });
