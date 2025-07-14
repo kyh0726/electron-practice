@@ -31,7 +31,7 @@ function createWindow() {
 
 function createTimerWindow() {
   timerWindow = new BrowserWindow({
-    width: 200,
+    width: 220,
     height: 120,
     frame: false, // 타이틀바 제거
     alwaysOnTop: true, // 항상 최상단
@@ -53,7 +53,7 @@ function createTimerWindow() {
   const { screen } = require('electron');
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;
-  timerWindow.setPosition(width - 220, 20);
+  timerWindow.setPosition(width - 240, 20);
 
   if (process.env.NODE_ENV === 'development') {
     timerWindow.loadURL('http://localhost:8080/timer.html');
@@ -331,9 +331,28 @@ function checkAfkStatus() {
 // 포모도로 타이머 시작
 function startTimer() {
   if (!timerStartTime) {
-    timerStartTime = Date.now() - elapsedTime;
-    timerInterval = setInterval(() => {
-      elapsedTime = Date.now() - timerStartTime!;
+    // 새로운 타이머 시작 시 elapsedTime을 0으로 리셋
+    elapsedTime = 0;
+    timerStartTime = Date.now();
+    
+    // 초기 상태 즉시 전송 (0초부터 시작)
+    const targetDuration = currentMode === 'work' ? workDuration : breakDuration;
+    sendTimerUpdate({
+      isRunning: true,
+      elapsedTime: 0,
+      remainingTime: targetDuration,
+      formattedTime: formatTime(targetDuration),
+      mode: currentMode,
+      isAfk: isAfk,
+      cycleCount: cycleCount,
+      totalWorkTime: Math.floor(totalWorkTime / 1000 / 60),
+      progress: 0
+    });
+    
+    // 타이머 업데이트 함수 - 1초씩 증가하는 방식으로 변경
+    const updateTimer = () => {
+      // elapsedTime을 1초씩 증가 (실제 시간 기반이 아닌 카운터 기반)
+      elapsedTime += 1000;
       
       // 작업 시간일 때 총 작업 시간 누적
       if (currentMode === 'work') {
@@ -354,19 +373,19 @@ function startTimer() {
         isRunning: true,
         elapsedTime: elapsedTime,
         remainingTime: remainingTime,
-        formattedTime: formatTime(remainingTime), // 남은 시간 표시
+        formattedTime: formatTime(remainingTime),
         mode: currentMode,
         isAfk: isAfk,
         cycleCount: cycleCount,
         totalWorkTime: Math.floor(totalWorkTime / 1000 / 60),
         progress: (elapsedTime / targetDuration) * 100
       });
-    }, 1000);
+    };
     
-    // 모니터링과 AFK 체크 시작
-    if (!isMonitoring) {
-      startMonitoring();
-    }
+    // 1초 간격으로 반복 실행
+    timerInterval = setInterval(updateTimer, 1000);
+    
+    // AFK 체크만 시작 (모니터링은 별도로 제어)
     startAfkCheck();
   }
 }
@@ -495,10 +514,7 @@ function stopTimer() {
       totalWorkTime: Math.floor(totalWorkTime / 1000 / 60)
     });
     
-    // 모니터링도 함께 중지
-    if (isMonitoring) {
-      stopMonitoring();
-    }
+    // 모니터링은 별도로 제어됨
   }
 }
 
@@ -628,11 +644,45 @@ ipcMain.handle('get-timer-status', async () => {
 // 포모도로 설정 핸들러
 ipcMain.handle('set-work-duration', async (event, minutes) => {
   workDuration = minutes * 60 * 1000;
+  
+  // 현재 작업 모드이고 타이머가 정지된 상태라면 즉시 반영
+  if (currentMode === 'work' && !timerInterval) {
+    elapsedTime = 0;
+    sendTimerUpdate({
+      isRunning: false,
+      elapsedTime: 0,
+      remainingTime: workDuration,
+      formattedTime: formatTime(workDuration),
+      mode: currentMode,
+      isAfk: false,
+      cycleCount: cycleCount,
+      totalWorkTime: Math.floor(totalWorkTime / 1000 / 60),
+      progress: 0
+    });
+  }
+  
   return { success: true };
 });
 
 ipcMain.handle('set-break-duration', async (event, minutes) => {
   breakDuration = minutes * 60 * 1000;
+  
+  // 현재 휴식 모드이고 타이머가 정지된 상태라면 즉시 반영
+  if (currentMode === 'break' && !timerInterval) {
+    elapsedTime = 0;
+    sendTimerUpdate({
+      isRunning: false,
+      elapsedTime: 0,
+      remainingTime: breakDuration,
+      formattedTime: formatTime(breakDuration),
+      mode: currentMode,
+      isAfk: false,
+      cycleCount: cycleCount,
+      totalWorkTime: Math.floor(totalWorkTime / 1000 / 60),
+      progress: 0
+    });
+  }
+  
   return { success: true };
 });
 

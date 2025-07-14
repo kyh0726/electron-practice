@@ -27,6 +27,9 @@ declare global {
       getTimerStatus: () => Promise<{ isRunning: boolean; elapsedTime: number; formattedTime: string }>;
       onTimerUpdate: (callback: (event: any, data: any) => void) => void;
       moveTimerWindow: (x: number, y: number) => void;
+      setWorkDuration: (minutes: number) => Promise<{ success: boolean }>;
+      setBreakDuration: (minutes: number) => Promise<{ success: boolean }>;
+      switchMode: (mode: 'work' | 'break') => Promise<{ success: boolean; error?: string }>;
     };
   }
 }

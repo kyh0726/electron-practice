@@ -59,6 +59,16 @@ const Timer: React.FC = () => {
     }
   };
 
+  const adjustTime = (minutes: number) => {
+    if (window.electronAPI && !timerData.isRunning) {
+      if (timerData.mode === 'work') {
+        window.electronAPI.setWorkDuration(Math.max(5, (timerData.remainingTime || 0) / 60000 + minutes));
+      } else {
+        window.electronAPI.setBreakDuration(Math.max(5, (timerData.remainingTime || 0) / 60000 + minutes));
+      }
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragOffset({
@@ -100,8 +110,8 @@ const Timer: React.FC = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        width: '200px',
-        height: '100px',
+        width: '220px',
+        height: '120px',
         padding: '10px',
         margin: 0,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -136,19 +146,61 @@ const Timer: React.FC = () => {
         </span>
       </div>
 
-      {/* 타이머 표시 */}
-      <div 
-        className="timer-display"
-        style={{
-          fontSize: '18px',
-          fontWeight: 'bold',
-          marginBottom: '8px',
-          textAlign: 'center',
-          fontFamily: '"Courier New", monospace',
-          color: timerData.isAfk ? '#ffc107' : 'white'
-        }}
-      >
-        {timerData.formattedTime}
+      {/* 시간 조정 버튼과 타이머 표시 */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+        <button
+          onClick={() => adjustTime(-5)}
+          disabled={timerData.isRunning}
+          style={{
+            width: '20px',
+            height: '20px',
+            border: 'none',
+            borderRadius: '50%',
+            background: timerData.isRunning ? '#6c757d' : '#007bff',
+            color: 'white',
+            fontSize: '10px',
+            cursor: timerData.isRunning ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          -
+        </button>
+        
+        <div 
+          className="timer-display"
+          style={{
+            fontSize: '18px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            fontFamily: '"Courier New", monospace',
+            color: timerData.isAfk ? '#ffc107' : 'white',
+            margin: '0 12px'
+          }}
+        >
+          {timerData.formattedTime}
+        </div>
+        
+        <button
+          onClick={() => adjustTime(5)}
+          disabled={timerData.isRunning}
+          style={{
+            width: '20px',
+            height: '20px',
+            border: 'none',
+            borderRadius: '50%',
+            background: timerData.isRunning ? '#6c757d' : '#007bff',
+            color: 'white',
+            fontSize: '10px',
+            cursor: timerData.isRunning ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          +
+        </button>
       </div>
 
       {/* 진행률 바 */}
