@@ -33,6 +33,7 @@ declare global {
       setWorkDuration: (minutes: number) => Promise<{ success: boolean }>;
       setBreakDuration: (minutes: number) => Promise<{ success: boolean }>;
       switchMode: (mode: 'work' | 'break') => Promise<{ success: boolean; error?: string }>;
+      onAuthCallback?: (callback: (event: any, fragment: string) => void) => void;
     };
   }
 }
@@ -78,16 +79,19 @@ const App: React.FC = () => {
         <div className="bg-white rounded-lg shadow-lg p-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
-              {user.user_metadata?.full_name ? user.user_metadata.full_name[0].toUpperCase() : user.email[0].toUpperCase()}
+              {user.user_metadata?.full_name ? user.user_metadata.full_name[0].toUpperCase() : (user.email?.[0] || 'U').toUpperCase()}
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-800">
                 {user.user_metadata?.full_name || '사용자'}
               </h2>
-              <p className="text-sm text-gray-600">{user.email}</p>
+              <p className="text-sm text-gray-600">{user.email || '이메일 없음'}</p>
             </div>
           </div>
           <div className="flex space-x-3">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              GitHub 로그인
+            </span>
             <button
               onClick={() => setShowSettings(true)}
               className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"

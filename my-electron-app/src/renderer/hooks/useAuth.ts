@@ -60,6 +60,25 @@ export const useAuth = () => {
       }
     )
 
+    // GitHub 인증 콜백 처리
+    const handleAuthCallback = (event: any, fragment: string) => {
+      const params = new URLSearchParams(fragment.substring(1))
+      const access_token = params.get('access_token')
+      const refresh_token = params.get('refresh_token')
+      
+      if (access_token) {
+        supabase.auth.setSession({
+          access_token,
+          refresh_token: refresh_token || ''
+        })
+      }
+    }
+
+    // Electron IPC 리스너 등록
+    if (window.electronAPI) {
+      window.electronAPI.onAuthCallback?.(handleAuthCallback)
+    }
+
     return () => {
       mounted = false
       subscription.unsubscribe()
@@ -69,7 +88,7 @@ export const useAuth = () => {
   // 회원가입
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
-      setAuthState(prev => ({ ...prev, loading: true, error: null }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: true, error: null }))
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -86,7 +105,7 @@ export const useAuth = () => {
       return { data, error: null }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '회원가입 중 오류가 발생했습니다.'
-      setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: false, error: errorMessage }))
       return { data: null, error: errorMessage }
     }
   }
@@ -94,7 +113,7 @@ export const useAuth = () => {
   // 로그인
   const signIn = async (email: string, password: string) => {
     try {
-      setAuthState(prev => ({ ...prev, loading: true, error: null }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: true, error: null }))
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -106,7 +125,7 @@ export const useAuth = () => {
       return { data, error: null }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.'
-      setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: false, error: errorMessage }))
       return { data: null, error: errorMessage }
     }
   }
@@ -114,7 +133,7 @@ export const useAuth = () => {
   // 구글 로그인
   const signInWithGoogle = async () => {
     try {
-      setAuthState(prev => ({ ...prev, loading: true, error: null }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: true, error: null }))
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -132,7 +151,29 @@ export const useAuth = () => {
       return { data, error: null }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '구글 로그인 중 오류가 발생했습니다.'
-      setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: false, error: errorMessage }))
+      return { data: null, error: errorMessage }
+    }
+  }
+
+  // GitHub 로그인
+  const signInWithGithub = async () => {
+    try {
+      setAuthState((prev: AuthState) => ({ ...prev, loading: true, error: null }))
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: 'electron-app://auth/callback'
+        }
+      })
+
+      if (error) throw error
+
+      return { data, error: null }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'GitHub 로그인 중 오류가 발생했습니다.'
+      setAuthState((prev: AuthState) => ({ ...prev, loading: false, error: errorMessage }))
       return { data: null, error: errorMessage }
     }
   }
@@ -140,7 +181,7 @@ export const useAuth = () => {
   // 로그아웃
   const signOut = async () => {
     try {
-      setAuthState(prev => ({ ...prev, loading: true, error: null }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: true, error: null }))
       
       const { error } = await supabase.auth.signOut()
       if (error) throw error
@@ -148,7 +189,7 @@ export const useAuth = () => {
       return { error: null }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '로그아웃 중 오류가 발생했습니다.'
-      setAuthState(prev => ({ ...prev, loading: false, error: errorMessage }))
+      setAuthState((prev: AuthState) => ({ ...prev, loading: false, error: errorMessage }))
       return { error: errorMessage }
     }
   }
@@ -169,6 +210,7 @@ export const useAuth = () => {
   return {
     ...authState,
     signInWithGoogle,
+    signInWithGithub,
     signOut
   }
 }

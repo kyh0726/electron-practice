@@ -47,5 +47,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 포모도로 설정
   setWorkDuration: (minutes: number) => ipcRenderer.invoke('set-work-duration', minutes),
   setBreakDuration: (minutes: number) => ipcRenderer.invoke('set-break-duration', minutes),
-  switchMode: (mode: 'work' | 'break') => ipcRenderer.invoke('switch-mode', mode)
+  switchMode: (mode: 'work' | 'break') => ipcRenderer.invoke('switch-mode', mode),
+  
+  // 인증 콜백 리스너
+  onAuthCallback: (callback: (event: any, fragment: string) => void) => {
+    ipcRenderer.on('auth-callback', callback);
+  }
 });

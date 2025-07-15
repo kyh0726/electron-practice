@@ -74,6 +74,9 @@ app.whenReady().then(() => {
   // 자동 업데이트 설정
   setupAutoUpdater();
 
+  // Supabase 인증 콜백 처리를 위한 프로토콜 핸들러
+  app.setAsDefaultProtocolClient('electron-app');
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -773,6 +776,24 @@ ipcMain.handle('install-update', async () => {
 ipcMain.on('move-timer-window', (event, { x, y }) => {
   if (timerWindow) {
     timerWindow.setPosition(x, y);
+  }
+});
+
+// Supabase 인증 콜백 URL 처리
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  
+  if (url.startsWith('electron-app://auth/callback')) {
+    // URL에서 access token과 refresh token 추출
+    const urlParts = new URL(url);
+    const fragment = urlParts.hash;
+    
+    if (fragment) {
+      // 메인 창에 인증 결과 전송
+      if (mainWindow) {
+        mainWindow.webContents.send('auth-callback', fragment);
+      }
+    }
   }
 });
 

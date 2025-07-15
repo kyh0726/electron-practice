@@ -1,5 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
+require('dotenv').config();
 
 module.exports = [
   {
@@ -27,7 +29,13 @@ module.exports = [
     },
     resolve: {
       extensions: ['.ts', '.js']
-    }
+    },
+    plugins: [
+      new webpack.DefinePlugin({
+        'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY)
+      })
+    ]
   },
   {
     mode: 'development',
@@ -76,6 +84,10 @@ module.exports = [
     plugins: [
       new HtmlWebpackPlugin({
         template: './src/renderer/index.html'
+      }),
+      new webpack.DefinePlugin({
+        'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY)
       })
     ],
     devServer: {
@@ -127,6 +139,10 @@ module.exports = [
       new HtmlWebpackPlugin({
         template: './src/renderer/timer.html',
         filename: 'timer.html'
+      }),
+      new webpack.DefinePlugin({
+        'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY)
       })
     ]
   }
