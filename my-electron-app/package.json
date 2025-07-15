@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:webpack\" \"npm run dev:electron\"",
     "dev:webpack": "NODE_ENV=development webpack serve --config webpack.config.js --no-open",
-    "dev:electron": "wait-on http://localhost:8080 && NODE_ENV=development electron .",
+    "dev:electron": "wait-on http://localhost:3000 && NODE_ENV=development electron .",
     "build": "webpack --config webpack.config.js",
     "start": "npm run build && electron .",
     "start:dev": "NODE_ENV=development npm run dev",

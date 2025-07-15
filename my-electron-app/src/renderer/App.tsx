@@ -49,7 +49,7 @@ const App: React.FC = () => {
   } = useUsageMonitoring();
   
   const { checkForUpdates } = useAutoUpdater();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, isAuthenticated, getCurrentSupabaseTokens, getBackendTokens, backendTokens } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
 
   // 인증 상태 로딩 중
@@ -59,13 +59,28 @@ const App: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">로딩 중...</p>
+          <p className="mt-2 text-sm text-gray-500">10초 이상 지속되면 새로고침해주세요</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            새로고침
+          </button>
+          <button 
+            onClick={() => {
+              window.location.reload();
+            }}
+            className="mt-2 ml-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          >
+            강제 새로고침
+          </button>
         </div>
       </div>
     );
   }
 
   // 로그인하지 않은 경우 인증 폼 표시
-  if (!user) {
+  if (!isAuthenticated) {
     return <AuthForm />;
   }
 
@@ -79,13 +94,13 @@ const App: React.FC = () => {
         <div className="bg-white rounded-lg shadow-lg p-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
-              {user.user_metadata?.full_name ? user.user_metadata.full_name[0].toUpperCase() : (user.email?.[0] || 'U').toUpperCase()}
+              {user?.user_metadata?.full_name ? user.user_metadata.full_name[0].toUpperCase() : (user?.email?.[0] || 'U').toUpperCase()}
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-800">
-                {user.user_metadata?.full_name || '사용자'}
+                {user?.user_metadata?.full_name || '사용자'}
               </h2>
-              <p className="text-sm text-gray-600">{user.email || '이메일 없음'}</p>
+              <p className="text-sm text-gray-600">{user?.email || '이메일 없음'}</p>
             </div>
           </div>
           <div className="flex space-x-3">
@@ -111,6 +126,29 @@ const App: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-6">시스템 활동 모니터링</h1>
+          
+          {/* 디버깅 정보 */}
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">디버깅 정보:</h3>
+            <div className="text-xs text-blue-700 space-y-1">
+              <p>인증 상태: {isAuthenticated ? '✅ 인증됨' : '❌ 미인증'}</p>
+              <p>사용자: {user ? '✅ 있음' : '❌ 없음'}</p>
+              <p>백엔드 토큰: {backendTokens ? `✅ ${backendTokens.accessToken.substring(0, 10)}...` : '❌ 없음'}</p>
+              <button 
+                onClick={async () => {
+                  console.log('=== 현재 상태 ===');
+                  console.log('authState:', { isAuthenticated, user: !!user });
+                  const supabaseTokens = await getCurrentSupabaseTokens();
+                  console.log('Supabase 토큰:', supabaseTokens ? `✅ ${supabaseTokens.accessToken.substring(0, 10)}...` : '❌ 없음');
+                  const backendTokens = getBackendTokens();
+                  console.log('백엔드 토큰:', backendTokens ? `✅ ${backendTokens.accessToken.substring(0, 10)}...` : '❌ 없음');
+                }}
+                className="mt-2 px-2 py-1 bg-blue-500 text-white text-xs rounded"
+              >
+                상태 로그 출력
+              </button>
+            </div>
+          </div>
           
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
             <p className="text-sm text-yellow-800">

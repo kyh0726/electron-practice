@@ -21,9 +21,21 @@ function createWindow() {
   });
 
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:8080');
-    // 개발자 도구를 자동으로 열지 않음
-    // mainWindow.webContents.openDevTools();
+    mainWindow.loadURL('http://localhost:3000');
+    // 개발자 도구 자동 열기
+    mainWindow.webContents.openDevTools();
+    
+    // 쿠키 확인
+    mainWindow.webContents.on('did-finish-load', async () => {
+      if (mainWindow) {
+        const cookies = await mainWindow.webContents.session.cookies.get({});
+        console.log('모든 쿠키:', cookies.map(c => ({ name: c.name, value: c.value?.substring(0, 20) + '...', domain: c.domain })));
+        
+        // Supabase 관련 쿠키만 필터링
+        const supabaseCookies = cookies.filter(c => c.domain?.includes('supabase') || c.name.includes('sb-'));
+        console.log('Supabase 쿠키:', supabaseCookies);
+      }
+    });
   } else {
     mainWindow.loadFile(path.join(__dirname, 'index.html'));
   }
@@ -56,7 +68,7 @@ function createTimerWindow() {
   timerWindow.setPosition(width - 240, 20);
 
   if (process.env.NODE_ENV === 'development') {
-    timerWindow.loadURL('http://localhost:8080/timer.html');
+    timerWindow.loadURL('http://localhost:3000/timer.html');
   } else {
     timerWindow.loadFile(path.join(__dirname, 'timer.html'));
   }

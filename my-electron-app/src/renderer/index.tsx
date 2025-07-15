@@ -13,8 +13,12 @@ if (!container) {
   console.log('Root container found, rendering App...');
   const root = createRoot(container);
   root.render(
-    <React.StrictMode>
+    process.env.NODE_ENV === 'production' ? (
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    ) : (
       <App />
-    </React.StrictMode>
+    )
   );
 }
