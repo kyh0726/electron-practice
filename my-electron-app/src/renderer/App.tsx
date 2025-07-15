@@ -105,7 +105,7 @@ const App: React.FC = () => {
           </div>
           <div className="flex space-x-3">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              GitHub 로그인
+              깃허브, 구글 로그인
             </span>
             <button
               onClick={() => setShowSettings(true)}
