@@ -6,41 +6,59 @@ import * as os from 'os';
 const activeWin = require('active-win');
 const osu = require('node-os-utils');
 
+// 상수 정의
+const PRIMARY_WINDOW_PRELOAD_WEBPACK_ENTRY = path.join(__dirname, 'preload.js');
+const primaryConstants = {
+  ONTOL_CLINIC_WEB_ADMIN_PATH: 'https://web-develop.pawcus.dev'
+};
+
+// elog 로깅 시스템 (간단한 구현)
+const elog = {
+  verbose: (message: string) => {
+    console.log(`[VERBOSE] ${message}`);
+  },
+  info: (message: string) => {
+    console.log(`[INFO] ${message}`);
+  },
+  error: (message: string) => {
+    console.error(`[ERROR] ${message}`);
+  }
+};
+
 let mainWindow: BrowserWindow | null = null;
 let timerWindow: BrowserWindow | null = null;
 let webView: BrowserView | null = null;
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
 
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3000');
-    // 개발자 도구 자동 열기
-    mainWindow.webContents.openDevTools();
-    
-    // 쿠키 확인
-    mainWindow.webContents.on('did-finish-load', async () => {
-      if (mainWindow) {
-        const cookies = await mainWindow.webContents.session.cookies.get({});
-        console.log('모든 쿠키:', cookies.map(c => ({ name: c.name, value: c.value?.substring(0, 20) + '...', domain: c.domain })));
-        
-        // Supabase 관련 쿠키만 필터링
-        const supabaseCookies = cookies.filter(c => c.domain?.includes('supabase') || c.name.includes('sb-'));
-        console.log('Supabase 쿠키:', supabaseCookies);
-      }
+// 새로운 createMainWindow 함수
+export const createMainWindow = (): void => {
+  elog.verbose("[Main] create main window");
+  if (mainWindow == null || mainWindow.isDestroyed()) {
+    mainWindow = new BrowserWindow({
+      minHeight: 600,
+      minWidth: 800,
+      height: 600,
+      width: 1400,
+      autoHideMenuBar: true,
+      trafficLightPosition: { x: 10, y: 10 },
+      webPreferences: {
+        preload: PRIMARY_WINDOW_PRELOAD_WEBPACK_ENTRY,
+        webSecurity: false,
+        webviewTag: true,
+        nodeIntegration: true,
+        contextIsolation: true, // contextBridge로 안전하게 IPC (보안 강화)
+      },
     });
+
+    mainWindow.loadURL(primaryConstants.ONTOL_CLINIC_WEB_ADMIN_PATH);
+
+    if (!app.isPackaged) {
+      mainWindow.webContents.openDevTools();
+    }
   } else {
-    mainWindow.loadFile(path.join(__dirname, 'index.html'));
+    mainWindow.show();
   }
-}
+};
 
 function createTimerWindow() {
   timerWindow = new BrowserWindow({
@@ -81,7 +99,7 @@ function createTimerWindow() {
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  createMainWindow(); // 새로운 webview 기반 메인 창 생성
   createTimerWindow(); // 타이머 창도 함께 생성
   
   // 자동 업데이트 설정
@@ -92,7 +110,7 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createMainWindow(); // 기존 createWindow 대신 createMainWindow 사용
       createTimerWindow();
     }
   });
