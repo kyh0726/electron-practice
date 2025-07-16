@@ -3,6 +3,7 @@ import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import { getAccessToken } from './api/config/axios';
 const activeWin = require('active-win');
 const osu = require('node-os-utils');
 
@@ -51,6 +52,40 @@ export const createMainWindow = (): void => {
     });
 
     mainWindow.loadURL(primaryConstants.ONTOL_CLINIC_WEB_ADMIN_PATH);
+
+    // 메인 창 로드 완료 후 토큰 초기화
+    mainWindow.webContents.once('did-finish-load', async () => {
+      try {
+        const accessToken = getAccessToken();
+        console.log('Access Token:', accessToken);
+        
+        if (accessToken && mainWindow) {
+          // 메인 창에서 직접 initAccessToken 호출
+          const result = await mainWindow.webContents.executeJavaScript(`
+            (function() {
+              try {
+                if (typeof window.initAccessToken === 'function') {
+                  window.initAccessToken('${accessToken}', "Windows");
+                  return { success: true, message: 'initAccessToken called successfully' };
+                } else {
+                  return { success: false, error: 'initAccessToken function not found' };
+                }
+              } catch (error) {
+                return { success: false, error: error.message };
+              }
+            })();
+          `);
+          
+          if (result.success) {
+            elog.info('[MainWindow] initAccessToken called successfully');
+          } else {
+            elog.error(`[MainWindow] initAccessToken failed: ${result.error}`);
+          }
+        }
+      } catch (error) {
+        elog.error(`[MainWindow] Failed to call initAccessToken: ${error}`);
+      }
+    });
 
     if (!app.isPackaged) {
       mainWindow.webContents.openDevTools();
@@ -810,6 +845,105 @@ ipcMain.on('move-timer-window', (event, { x, y }) => {
   }
 });
 
+// 웹뷰에서 initAccessToken 함수 호출 (재시도 로직 포함)
+async function callInitAccessTokenInWebview(accessToken: string, retryCount: number = 5): Promise<boolean> {
+  try {
+    if (!webView) {
+      elog.error('[WebView] No webview available for initAccessToken');
+      return false;
+    }
+
+    // 웹뷰가 로드될 때까지 대기
+    while (webView.webContents.isLoading()) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // 재시도 로직
+    for (let i = 0; i < retryCount; i++) {
+      try {
+        // 웹뷰에서 initAccessToken 함수 호출
+        const result = await webView.webContents.executeJavaScript(`
+          (function() {
+            try {
+              if (typeof window.initAccessToken === 'function') {
+                window.initAccessToken('${accessToken}', "Windows");
+                return { success: true, message: 'initAccessToken called successfully' };
+              } else {
+                return { success: false, error: 'initAccessToken function not found' };
+              }
+            } catch (error) {
+              return { success: false, error: error.message };
+            }
+          })();
+        `);
+
+        if (result.success) {
+          elog.info('[WebView] initAccessToken called successfully');
+          return true;
+        } else {
+          elog.error(`[WebView] initAccessToken failed (attempt ${i + 1}): ${result.error}`);
+          
+          // 함수가 아직 로드되지 않았다면 잠시 대기 후 재시도
+          if (result.error === 'initAccessToken function not found' && i < retryCount - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // 점진적 지연
+            continue;
+          }
+          
+          return false;
+        }
+      } catch (error) {
+        elog.error(`[WebView] Failed to call initAccessToken (attempt ${i + 1}): ${error}`);
+        if (i < retryCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // 점진적 지연
+        }
+      }
+    }
+
+    return false;
+  } catch (error) {
+    elog.error(`[WebView] Failed to call initAccessToken: ${error}`);
+    return false;
+  }
+}
+
+// 웹뷰에서 전역 함수 호출 (범용)
+async function executeWebviewFunction(functionName: string, ...args: any[]): Promise<any> {
+  try {
+    if (!webView) {
+      throw new Error('No webview available');
+    }
+
+    // 웹뷰가 로드될 때까지 대기
+    while (webView.webContents.isLoading()) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // 인자를 JSON 문자열로 변환하여 안전하게 전달
+    const argsJson = JSON.stringify(args);
+    
+    const result = await webView.webContents.executeJavaScript(`
+      (function() {
+        try {
+          if (typeof window.${functionName} === 'function') {
+            const args = ${argsJson};
+            const result = window.${functionName}(...args);
+            return { success: true, result: result };
+          } else {
+            return { success: false, error: '${functionName} function not found' };
+          }
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      })();
+    `);
+
+    return result;
+  } catch (error) {
+    elog.error(`[WebView] Failed to execute ${functionName}: ${error}`);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 // WebView 관련 IPC 핸들러
 ipcMain.handle('create-webview', async (event, url) => {
   try {
@@ -856,6 +990,22 @@ ipcMain.handle('create-webview', async (event, url) => {
     // URL 로드
     await webView.webContents.loadURL(url);
 
+    // 웹뷰 로드 완료 후 토큰 초기화 (비동기적으로 실행)
+    setTimeout(async () => {
+      // 로딩이 완료될 때까지 대기
+      while (webView && webView.webContents.isLoading()) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // 추가 지연 후 토큰 초기화
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const accessToken = await getAccessToken();
+      if (accessToken && webView) {
+        await callInitAccessTokenInWebview(accessToken as string);
+      }
+    }, 500); // 초기 지연
+
     return { success: true };
   } catch (error) {
     console.error('Failed to create webview:', error);
@@ -884,6 +1034,102 @@ ipcMain.handle('webview-navigate', async (event, url) => {
     
     await webView.webContents.loadURL(url);
     return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// 웹뷰에서 initAccessToken 함수 호출 IPC 핸들러
+ipcMain.handle('webview-init-access-token', async (event, accessToken) => {
+  try {
+    const result = await callInitAccessTokenInWebview(accessToken);
+    return { success: result, message: result ? 'initAccessToken called successfully' : 'Failed to call initAccessToken' };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// 웹뷰에서 전역 함수 호출 IPC 핸들러
+ipcMain.handle('webview-execute-function', async (event, functionName, ...args) => {
+  try {
+    const result = await executeWebviewFunction(functionName, ...args);
+    return result;
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// 웹뷰에서 현재 유효한 토큰으로 initAccessToken 호출
+ipcMain.handle('webview-refresh-token', async () => {
+  try {
+    const accessToken = await getAccessToken();
+    if (accessToken) {
+      const result = await callInitAccessTokenInWebview(accessToken as string);
+      return { success: result, message: result ? 'Token refreshed in webview' : 'Failed to refresh token in webview' };
+    } else {
+      return { success: false, error: 'No valid access token available' };
+    }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// 메인 창에서 initAccessToken 호출
+ipcMain.handle('mainwindow-init-access-token', async (event, accessToken) => {
+  try {
+    if (!mainWindow) {
+      return { success: false, error: 'Main window not available' };
+    }
+
+    const result = await mainWindow.webContents.executeJavaScript(`
+      (function() {
+        try {
+          if (typeof window.initAccessToken === 'function') {
+            window.initAccessToken('${accessToken}', "Windows");
+            return { success: true, message: 'initAccessToken called successfully' };
+          } else {
+            return { success: false, error: 'initAccessToken function not found' };
+          }
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      })();
+    `);
+
+    return result;
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// 메인 창에서 현재 유효한 토큰으로 initAccessToken 호출
+ipcMain.handle('mainwindow-refresh-token', async () => {
+  try {
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      if (!mainWindow) {
+        return { success: false, error: 'Main window not available' };
+      }
+
+      const result = await mainWindow.webContents.executeJavaScript(`
+        (function() {
+          try {
+            if (typeof window.initAccessToken === 'function') {
+              window.initAccessToken('${accessToken}', "Windows");
+              return { success: true, message: 'initAccessToken called successfully' };
+            } else {
+              return { success: false, error: 'initAccessToken function not found' };
+            }
+          } catch (error) {
+            return { success: false, error: error.message };
+          }
+        })();
+      `);
+
+      return result;
+    } else {
+      return { success: false, error: 'No valid access token available' };
+    }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
