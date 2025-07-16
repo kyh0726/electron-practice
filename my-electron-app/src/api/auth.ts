@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { API } from './config/axios'
+import { API, setAccessToken, setRefreshToken } from './config/axios'
 
 export interface BackendAuthResponse {
   isSuccess: boolean
@@ -23,6 +23,9 @@ export async function authenticateWithBackend(supabaseAccessToken: string): Prom
     });
 
     console.log('백엔드 인증 응답:', response.data);
+    const { accessToken, refreshToken } = response.data.data
+    setAccessToken(accessToken)
+    setRefreshToken(refreshToken)
     
     return response.data;
   } catch (error) {

@@ -2,6 +2,27 @@ import axios from 'axios'
 
 const baseURL = process.env.API_BASE_URL
 
+export const setAccessToken = (accessToken: string) => {
+  API.defaults.headers['Authorization'] = `Bearer ${accessToken}`
+}
+
+export const getAccessToken = () => {
+  return API.defaults.headers['Authorization']
+}
+
+export const setRefreshToken = (refreshToken: string) => {
+  localStorage.setItem('refreshToken', refreshToken)
+}
+
+export const getRefreshToken = () => {
+  return localStorage.getItem('refreshToken')
+}
+
+export const removeTokens = () => {
+  API.defaults.headers['Authorization'] = ''
+  localStorage.removeItem('refreshToken')
+}
+
 export const API = axios.create({
   baseURL,
   timeout: 10000,
