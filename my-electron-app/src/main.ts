@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, BrowserView, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -8,6 +8,7 @@ const osu = require('node-os-utils');
 
 let mainWindow: BrowserWindow | null = null;
 let timerWindow: BrowserWindow | null = null;
+let webView: BrowserView | null = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -788,6 +789,85 @@ ipcMain.handle('install-update', async () => {
 ipcMain.on('move-timer-window', (event, { x, y }) => {
   if (timerWindow) {
     timerWindow.setPosition(x, y);
+  }
+});
+
+// WebView 관련 IPC 핸들러
+ipcMain.handle('create-webview', async (event, url) => {
+  try {
+    if (!mainWindow) {
+      return { success: false, error: 'Main window not available' };
+    }
+
+    // 기존 webview가 있으면 제거
+    if (webView) {
+      mainWindow.removeBrowserView(webView);
+      webView = null;
+    }
+
+    // 새로운 BrowserView 생성
+    webView = new BrowserView({
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: true
+      }
+    });
+
+    // 메인 창에 webview 추가
+    mainWindow.setBrowserView(webView);
+
+    // 메인 창의 webContents 완전히 숨기기
+    mainWindow.webContents.executeJavaScript(`
+      document.body.style.display = 'none';
+      document.documentElement.style.display = 'none';
+    `);
+    
+    // webview 크기 설정 (전체 화면)
+    const bounds = mainWindow.getBounds();
+    webView.setBounds({ 
+      x: 0, 
+      y: 0, 
+      width: bounds.width, 
+      height: bounds.height 
+    });
+
+    // 자동 리사이즈 설정
+    webView.setAutoResize({ width: true, height: true });
+
+    // URL 로드
+    await webView.webContents.loadURL(url);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to create webview:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('hide-webview', async () => {
+  try {
+    if (webView && mainWindow) {
+      mainWindow.removeBrowserView(webView);
+      webView = null;
+      return { success: true };
+    }
+    return { success: false, error: 'No webview to hide' };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('webview-navigate', async (event, url) => {
+  try {
+    if (!webView) {
+      return { success: false, error: 'No webview available' };
+    }
+    
+    await webView.webContents.loadURL(url);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 });
 

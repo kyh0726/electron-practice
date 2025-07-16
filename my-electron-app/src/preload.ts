@@ -1,32 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  platform: process.platform,
-  versions: {
-    node: process.versions.node,
-    chrome: process.versions.chrome,
-    electron: process.versions.electron
-  },
-  saveLog: (logData: { action: string; details: any }) => 
-    ipcRenderer.invoke('save-log', logData),
-  startMonitoring: () => ipcRenderer.invoke('start-monitoring'),
-  stopMonitoring: () => ipcRenderer.invoke('stop-monitoring'),
-  getCurrentActivity: () => ipcRenderer.invoke('get-current-activity'),
-  
-  // 자동 업데이트 API
-  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  downloadUpdate: () => ipcRenderer.invoke('download-update'),
-  installUpdate: () => ipcRenderer.invoke('install-update'),
-  
-  // 업데이트 상태 리스너
-  onUpdateStatus: (callback: (event: any, data: any) => void) => {
-    ipcRenderer.on('update-status', callback);
+  // 인증 콜백 리스너
+  onAuthCallback: (callback: (event: any, fragment: string) => void) => {
+    ipcRenderer.on('auth-callback', callback);
   },
   
-  // 업데이트 상태 리스너 제거
-  removeUpdateStatusListener: (callback: (event: any, data: any) => void) => {
-    ipcRenderer.removeListener('update-status', callback);
-  },
+  // 웹뷰 API
+  createWebview: (url: string) => ipcRenderer.invoke('create-webview', url),
+  hideWebview: () => ipcRenderer.invoke('hide-webview'),
+  webviewNavigate: (url: string) => ipcRenderer.invoke('webview-navigate', url),
   
   // 타이머 API
   startTimer: () => ipcRenderer.invoke('start-timer'),
@@ -46,11 +29,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // 포모도로 설정
   setWorkDuration: (minutes: number) => ipcRenderer.invoke('set-work-duration', minutes),
-  setBreakDuration: (minutes: number) => ipcRenderer.invoke('set-break-duration', minutes),
-  switchMode: (mode: 'work' | 'break') => ipcRenderer.invoke('switch-mode', mode),
-  
-  // 인증 콜백 리스너
-  onAuthCallback: (callback: (event: any, fragment: string) => void) => {
-    ipcRenderer.on('auth-callback', callback);
-  }
+  setBreakDuration: (minutes: number) => ipcRenderer.invoke('set-break-duration', minutes)
 });

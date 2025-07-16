@@ -55,7 +55,7 @@ const Timer: React.FC = () => {
 
   const handleStop = () => {
     if (window.electronAPI) {
-      window.electronAPI.resetTimer();
+      window.electronAPI.stopTimer();
     }
   };
 
